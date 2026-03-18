@@ -6,9 +6,6 @@ openai>=1.0.0
 google-genai>=1.0.0
 groq>=0.13.0
 
-# Speech-to-Text (local Whisper fallback)
-openai-whisper>=20231117
-
 # Text-to-Speech
 edge-tts>=6.1.9
 

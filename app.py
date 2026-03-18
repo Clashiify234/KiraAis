@@ -14,7 +14,10 @@ from datetime import datetime
 
 import numpy as np
 import soundfile as sf
-import whisper
+try:
+    import whisper as whisper
+except ImportError:
+    whisper = None
 import anthropic
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response, stream_with_context
 from dotenv import load_dotenv
