@@ -1,0 +1,15 @@
+# API Keys - NIEMALS hochladen!
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporäre Audio-Dateien
+*.wav
+*.mp3
+
+# Virtual Environment
+venv/
+.venv/

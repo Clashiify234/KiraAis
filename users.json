@@ -1,0 +1,13 @@
+[
+  {
+    "username": "Roman",
+    "password": "123",
+    "settings": {
+      "ai_lang": "de",
+      "ui_lang": "en",
+      "context_memory": true,
+      "firstname": "Roman",
+      "lastname": ""
+    }
+  }
+]

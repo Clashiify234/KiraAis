@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}Kira - Chat{% endblock %}
+
+{% block content %}
+<!-- Chat Messages -->
+<div id="chat-messages" class="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+    <div id="messages-container" class="flex flex-col gap-4 w-full max-w-[1100px] mx-auto"></div>
+</div>
+
+<!-- Input Area (pinned bottom) - same prompt bar as index.html -->
+<div class="px-4 md:px-8 pb-4 pt-2 w-full flex-shrink-0">
+    <div class="w-full max-w-[1100px] mx-auto">
+        <div class="w-full border border-border-default rounded-[24px] shadow-input bg-white overflow-hidden transition-all duration-300 flex flex-col relative z-20 hover:border-border-dark focus-within:!border-brand-300 focus-within:!shadow-input-focus">
+
+            <div class="px-5 pt-5 pb-2">
+                <textarea
+                    id="chat-input"
+                    placeholder="Ask me anything..."
+                    class="w-full bg-transparent resize-none outline-none text-text-primary placeholder-text-tertiary text-[16px] leading-relaxed h-[44px] max-h-[150px] hide-scrollbar"
+                    rows="1"
+                ></textarea>
+            </div>
+
+            <div class="px-4 pb-4 pt-1 flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <button id="btn-research" onclick="toggleMode('research','btn-research')" class="flex items-center gap-1.5 bg-white border border-border-default text-text-secondary hover:bg-surface-hover px-3.5 py-1.5 rounded-[10px] text-[13px] font-bold transition-colors">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="14.31" y1="8" x2="20.05" y2="17.94"></line><line x1="9.69" y1="8" x2="21.17" y2="8"></line><line x1="7.38" y1="12" x2="13.12" y2="2.06"></line><line x1="9.69" y1="16" x2="3.95" y2="6.06"></line><line x1="14.31" y1="16" x2="2.83" y2="16"></line><line x1="16.62" y1="12" x2="10.88" y2="21.94"></line></svg>
+                        Deeper Research
+                    </button>
+                    <button id="btn-image" onclick="toggleMode('image','btn-image')" class="text-text-tertiary hover:text-text-secondary p-2 hover:bg-surface-hover rounded-xl transition-colors tooltip-trigger" aria-label="Generate Image">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    </button>
+                    <button id="btn-think" onclick="toggleMode('think','btn-think')" class="text-text-tertiary hover:text-text-secondary p-2 hover:bg-surface-hover rounded-xl transition-colors tooltip-trigger" aria-label="Think Deeper">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
+                    </button>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button class="text-text-tertiary hover:text-text-secondary p-2 hover:bg-surface-hover rounded-xl transition-colors tooltip-trigger" aria-label="Web Search">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </button>
+                    <button class="text-text-tertiary hover:text-text-secondary p-2 hover:bg-surface-hover rounded-xl transition-colors tooltip-trigger" aria-label="Attach File">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                    </button>
+                    <button id="mic-btn" onclick="toggleRecording()" class="text-text-tertiary hover:text-white hover:bg-brand-500 p-2 rounded-xl transition-all mr-1 tooltip-trigger" aria-label="Voice Input">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                    </button>
+                    <button id="send-btn" onclick="sendMessage()" class="bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white p-2.5 rounded-full transition-all shadow-btn hover:shadow-md transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        <p class="text-[11px] text-text-tertiary text-center mt-2">Kira can make mistakes. Check important info.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const conversationId = "{{ conversation_id }}";
+    let isSending = false;
+
+    // ============================================================
+    // LOAD CONVERSATION
+    // ============================================================
+    async function loadConversation() {
+        try {
+            var res = await fetch('/api/conversations/' + conversationId);
+            var data = await res.json();
+            if (data.error) return;
+            var container = document.getElementById('messages-container');
+            container.innerHTML = '';
+            data.messages.forEach(msg => addMessage(msg.content, msg.role));
+            if (data.model) currentModel = data.model;
+            scrollToBottom();
+        } catch (err) {}
+    }
+
+    // Model ID -> provider mapping for logo lookup
+    const modelToProvider = {
+        'claude-sonnet': 'claude', 'claude-opus': 'claude',
+        'gemini-2.5-pro': 'gemini', 'gemini-2.5-flash': 'gemini',
+        'llama-4': 'meta',
+    };
+
+    function renderMarkdown(text) {
+        // Escape HTML first
+        var d = document.createElement('div');
+        d.textContent = text;
+        var s = d.innerHTML;
+        // Code blocks ```
+        s = s.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 rounded-xl p-3 my-2 overflow-x-auto text-xs"><code>$2</code></pre>');
+        // Inline code `
+        s = s.replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-brand-700 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
+        // Bold **text**
+        s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        // Italic *text*
+        s = s.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+        // Links [text](url)
+        s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-brand-600 underline hover:text-brand-700">$1</a>');
+        // Headers ### / ## / #
+        s = s.replace(/^### (.+)$/gm, '<h4 class="font-bold text-base mt-3 mb-1">$1</h4>');
+        s = s.replace(/^## (.+)$/gm, '<h3 class="font-bold text-lg mt-3 mb-1">$1</h3>');
+        s = s.replace(/^# (.+)$/gm, '<h2 class="font-bold text-xl mt-3 mb-1">$1</h2>');
+        // Bullet lists
+        s = s.replace(/^[*-] (.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
+        s = s.replace(/(<li.*<\/li>\n?)+/g, '<ul class="my-1">$&</ul>');
+        // Numbered lists
+        s = s.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>');
+        // Line breaks
+        s = s.replace(/\n/g, '<br>');
+        // Clean up double <br> after block elements
+        s = s.replace(/(<\/pre>)<br>/g, '$1');
+        s = s.replace(/(<\/h[234]>)<br>/g, '$1');
+        s = s.replace(/(<\/ul>)<br>/g, '$1');
+        return s;
+    }
+
+    function addMessage(text, role) {
+        var container = document.getElementById('messages-container');
+
+        if (role === 'user') {
+            var msg = document.createElement('div');
+            msg.className = 'chat-msg max-w-[70%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap self-end bg-brand-500 text-white rounded-br-md';
+            msg.textContent = text;
+            container.appendChild(msg);
+        } else if (role === 'assistant') {
+            // Wrapper: logo + bubble side by side
+            var wrapper = document.createElement('div');
+            wrapper.className = 'chat-msg flex items-start gap-3 self-start max-w-full';
+
+            // Model logo avatar
+            var avatar = document.createElement('div');
+            avatar.className = 'w-8 h-8 rounded-full border border-border-default bg-white flex items-center justify-center flex-shrink-0 mt-0.5';
+            var provider = modelToProvider[currentModel] || 'claude';
+            avatar.innerHTML = modelLogos[provider] || modelLogos['claude'];
+            // Scale down the SVG inside
+            var svg = avatar.querySelector('svg');
+            if (svg) { svg.setAttribute('width', '16'); svg.setAttribute('height', '16'); }
+
+            var msg = document.createElement('div');
+            msg.className = 'px-4 py-3 rounded-2xl text-sm leading-relaxed bg-white border border-border-default text-text-primary rounded-bl-md';
+            msg.innerHTML = renderMarkdown(text);
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(msg);
+            container.appendChild(wrapper);
+        } else {
+            var msg = document.createElement('div');
+            msg.className = 'chat-msg self-start flex items-center gap-2.5 text-text-tertiary text-xs py-2';
+            msg.innerHTML = '<div class="w-5 h-5 flex items-center justify-center"><svg class="animate-spin w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="50 20"/></svg></div><span class="status-text">' + escapeHtml(text) + '</span>';
+            container.appendChild(msg);
+        }
+
+        scrollToBottom();
+        return container.lastElementChild;
+    }
+
+    function createAssistantBubble() {
+        var container = document.getElementById('messages-container');
+        var wrapper = document.createElement('div');
+        wrapper.className = 'chat-msg flex items-start gap-3 self-start max-w-full';
+
+        var avatar = document.createElement('div');
+        avatar.className = 'w-8 h-8 rounded-full border border-border-default bg-white flex items-center justify-center flex-shrink-0 mt-0.5';
+        var provider = modelToProvider[currentModel] || 'claude';
+        avatar.innerHTML = modelLogos[provider] || modelLogos['claude'];
+        var svg = avatar.querySelector('svg');
+        if (svg) { svg.setAttribute('width', '16'); svg.setAttribute('height', '16'); }
+
+        var msg = document.createElement('div');
+        msg.className = 'px-4 py-3 rounded-2xl text-sm leading-relaxed bg-white border border-border-default text-text-primary rounded-bl-md';
+        msg.innerHTML = '';
+
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(msg);
+        container.appendChild(wrapper);
+        scrollToBottom();
+        return msg; // Return the content div to write into
+    }
+
+    function scrollToBottom() {
+        var el = document.getElementById('chat-messages');
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function addImageMessage(url) {
+        var container = document.getElementById('messages-container');
+        var wrapper = document.createElement('div');
+        wrapper.className = 'chat-msg self-start max-w-[70%]';
+        wrapper.innerHTML = '<a href="' + url + '" target="_blank"><img src="' + url + '" class="rounded-2xl border border-border-default shadow-sm max-w-full" alt="Generated image"></a>';
+        container.appendChild(wrapper);
+        scrollToBottom();
+    }
+
+    function attachSources(bubbleWrapper, sources) {
+        if (!bubbleWrapper || !sources || !sources.length) return;
+        // Find the message bubble (second child of the wrapper, after the avatar)
+        var msgDiv = bubbleWrapper.querySelector('.rounded-2xl') || bubbleWrapper.lastElementChild;
+        if (!msgDiv) return;
+
+        var bar = document.createElement('div');
+        bar.className = 'mt-3 pt-3 border-t border-border-light';
+
+        // Build favicon row: show first 3 favicons, then +N badge
+        var show = Math.min(sources.length, 3);
+        var extra = sources.length - show;
+
+        var html = '<div class="flex items-center gap-1">';
+        // Favicons
+        for (var i = 0; i < show; i++) {
+            var domain = getDomain(sources[i].url);
+            var favicon = 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(domain) + '&sz=32';
+            html += '<a href="' + escapeHtml(sources[i].url) + '" target="_blank" title="' + escapeHtml(sources[i].title) + '" class="w-6 h-6 rounded-full bg-white border border-border-default flex items-center justify-center hover:scale-110 transition-transform overflow-hidden">';
+            html += '<img src="' + favicon + '" width="14" height="14" class="rounded-sm" onerror="this.style.display=\'none\'">';
+            html += '</a>';
+        }
+        // +N badge if more than 3
+        if (extra > 0) {
+            html += '<button onclick="this.parentElement.nextElementSibling.classList.toggle(\'hidden\')" class="h-6 px-2 rounded-full bg-surface-hover border border-border-default text-[11px] font-bold text-text-secondary hover:bg-border-default transition-colors cursor-pointer">+' + extra + '</button>';
+        }
+        html += '</div>';
+
+        // Expandable full list (hidden by default)
+        html += '<div class="hidden mt-2 flex flex-col gap-1.5">';
+        sources.forEach(function(s, i) {
+            var domain = getDomain(s.url);
+            var favicon = 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(domain) + '&sz=32';
+            html += '<a href="' + escapeHtml(s.url) + '" target="_blank" class="flex items-center gap-2 text-xs text-text-secondary hover:text-brand-600 transition-colors group">';
+            html += '<img src="' + favicon + '" width="14" height="14" class="rounded-sm flex-shrink-0" onerror="this.style.display=\'none\'">';
+            html += '<span class="truncate group-hover:underline">' + escapeHtml(s.title) + '</span>';
+            html += '</a>';
+        });
+        html += '</div>';
+
+        bar.innerHTML = html;
+        msgDiv.appendChild(bar);
+        scrollToBottom();
+    }
+
+    function addDesignCards(designs) {
+        if (!designs || !designs.length) return;
+        var container = document.getElementById('messages-container');
+        var wrapper = document.createElement('div');
+        wrapper.className = 'chat-msg self-start max-w-full';
+        var html = '<div class="flex flex-wrap gap-3">';
+        designs.forEach(function(d) {
+            var thumb = d.thumbnail ? '<img src="' + d.thumbnail + '" class="w-full h-28 object-cover rounded-t-xl">' : '<div class="w-full h-28 bg-gradient-to-br from-brand-100 to-brand-50 rounded-t-xl flex items-center justify-center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5"><circle cx="13.5" cy="6.5" r=".5" fill="#f97316"/><circle cx="17.5" cy="10.5" r=".5" fill="#f97316"/><circle cx="8.5" cy="7.5" r=".5" fill="#f97316"/><circle cx="6.5" cy="12.5" r=".5" fill="#f97316"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></div>';
+            var link = d.url ? d.url : '#';
+            html += '<a href="' + link + '" target="_blank" class="block w-48 border border-border-default rounded-xl overflow-hidden hover:shadow-md transition-shadow bg-white">';
+            html += thumb;
+            html += '<div class="p-3"><p class="text-xs font-bold text-text-primary truncate">' + escapeHtml(d.title || 'Untitled') + '</p>';
+            html += '<p class="text-[10px] text-brand-500 mt-1 font-semibold">Open in Canva</p>';
+            html += '</div></a>';
+        });
+        html += '</div>';
+        wrapper.innerHTML = html;
+        container.appendChild(wrapper);
+        scrollToBottom();
+    }
+
+    function getDomain(url) {
+        try { return new URL(url).hostname; } catch(e) { return url.split('/')[2] || url; }
+    }
+
+    // ============================================================
+    // SEND MESSAGE
+    // ============================================================
+    async function sendMessage() {
+        var textarea = document.getElementById('chat-input');
+        var text = textarea.value.trim();
+        if (!text || isSending) return;
+
+        isSending = true;
+        document.getElementById('send-btn').disabled = true;
+        textarea.value = '';
+        textarea.style.height = '44px';
+
+        var mode = getActiveMode();
+        addMessage(text, 'user');
+
+        // Status indicator
+        var statusEl = addMessage('Thinking...', 'status');
+        var bubbleEl = null;      // The assistant message bubble content div
+        var rawText = '';          // Accumulated raw text
+
+        try {
+            var res = await fetch('/api/text-chat-stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, model: currentModel, conversation_id: conversationId, mode: mode })
+            });
+
+            var reader = res.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+
+            while (true) {
+                var { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                var lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                var currentEvent = '';
+                for (var line of lines) {
+                    if (line.startsWith('event: ')) {
+                        currentEvent = line.slice(7);
+                    } else if (line.startsWith('data: ')) {
+                        var payload;
+                        try { payload = JSON.parse(line.slice(6)); } catch(e) { continue; }
+
+                        if (currentEvent === 'status') {
+                            var statusSpan = statusEl.querySelector('.status-text');
+                            if (statusSpan) {
+                                var t = payload.text || '';
+                                if (payload.url) {
+                                    var domain = payload.url.split('/')[2] || payload.url;
+                                    statusSpan.innerHTML = escapeHtml(t) + ' <a href="' + escapeHtml(payload.url) + '" target="_blank" class="text-brand-500 hover:underline">' + escapeHtml(domain) + '</a>';
+                                } else {
+                                    statusSpan.textContent = t;
+                                }
+                            }
+                            scrollToBottom();
+                        } else if (currentEvent === 'stream_start') {
+                            statusEl.remove();
+                            bubbleEl = createAssistantBubble();
+                        } else if (currentEvent === 'chunk') {
+                            if (bubbleEl) {
+                                rawText += payload.text || '';
+                                bubbleEl.innerHTML = renderMarkdown(rawText);
+                                scrollToBottom();
+                            }
+                        } else if (currentEvent === 'done') {
+                            if (payload.image_url) addImageMessage(payload.image_url);
+                            if (payload.sources && payload.sources.length && bubbleEl) {
+                                attachSources(bubbleEl.closest('.flex.items-start') || bubbleEl.parentElement, payload.sources);
+                            }
+                            // Canva tool results
+                            if (payload.tool_designs) addDesignCards(payload.tool_designs);
+                            if (payload.tool_design) addDesignCards([payload.tool_design]);
+                            loadChatHistory();
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            if (statusEl.parentNode) statusEl.remove();
+            addMessage('Connection error. Please try again.', 'status');
+        }
+
+        isSending = false;
+        document.getElementById('send-btn').disabled = false;
+        textarea.focus();
+    }
+
+    // ============================================================
+    // VOICE
+    // ============================================================
+    var isRecording = false, audioContext = null, scriptProcessor = null, audioStream = null, recordedSamples = [];
+
+    async function toggleRecording() { if (isRecording) stopRecording(); else await startRecording(); }
+
+    async function startRecording() {
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            audioContext = new AudioContext({ sampleRate: 16000 });
+            var source = audioContext.createMediaStreamSource(audioStream);
+            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+            recordedSamples = [];
+            scriptProcessor.onaudioprocess = e => recordedSamples.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+            source.connect(scriptProcessor); scriptProcessor.connect(audioContext.destination);
+            isRecording = true;
+            document.getElementById('mic-btn').classList.add('recording');
+            document.getElementById('chat-input').placeholder = 'Listening... (click again to stop)';
+        } catch (err) { document.getElementById('chat-input').placeholder = 'Microphone access denied!'; }
+    }
+
+    function stopRecording() {
+        isRecording = false;
+        document.getElementById('mic-btn').classList.remove('recording');
+        document.getElementById('chat-input').placeholder = 'Send a message...';
+        if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
+        if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null; }
+        if (recordedSamples.length > 0) processAudio(samplesToWav(recordedSamples, 16000));
+        if (audioContext) { audioContext.close(); audioContext = null; }
+    }
+
+    function samplesToWav(samples, sr) {
+        var len = 0; for (var i = 0; i < samples.length; i++) len += samples[i].length;
+        var merged = new Float32Array(len), off = 0;
+        for (var i = 0; i < samples.length; i++) { merged.set(samples[i], off); off += samples[i].length; }
+        var pcm = new Int16Array(merged.length);
+        for (var i = 0; i < merged.length; i++) { var s = Math.max(-1, Math.min(1, merged[i])); pcm[i] = s < 0 ? s*0x8000 : s*0x7FFF; }
+        var buf = new ArrayBuffer(44 + pcm.length*2), v = new DataView(buf);
+        wStr(v,0,'RIFF'); v.setUint32(4,36+pcm.length*2,true); wStr(v,8,'WAVE');
+        wStr(v,12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+        v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+        wStr(v,36,'data'); v.setUint32(40,pcm.length*2,true);
+        new Int16Array(buf,44).set(pcm);
+        return new Blob([buf], {type:'audio/wav'});
+    }
+    function wStr(v,o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}
+
+    async function processAudio(wavBlob) {
+        var micBtn = document.getElementById('mic-btn');
+        micBtn.style.pointerEvents = 'none'; micBtn.style.opacity = '0.5';
+        var thinkingMsg = addMessage('Kira is thinking...', 'status');
+        try {
+            var fd = new FormData();
+            fd.append('audio', wavBlob, 'recording.wav');
+            fd.append('model', currentModel);
+            fd.append('conversation_id', conversationId);
+            var res = await fetch('/api/chat', { method:'POST', body:fd });
+            var data = await res.json();
+            thinkingMsg.remove();
+            if (data.error && !data.user_text) {
+                addMessage('Could not understand. Try again!', 'status');
+            } else {
+                addMessage(data.user_text, 'user');
+                addMessage(data.assistant_text, 'assistant');
+                loadChatHistory();
+                if (data.audio) {
+                    var ab = atob(data.audio), arr = new Uint8Array(ab.length);
+                    for (var i=0;i<ab.length;i++) arr[i]=ab.charCodeAt(i);
+                    var url = URL.createObjectURL(new Blob([arr],{type:'audio/mpeg'}));
+                    var audio = new Audio(url);
+                    audio.onended = () => URL.revokeObjectURL(url);
+                    audio.play();
+                }
+            }
+        } catch (err) {
+            thinkingMsg.remove();
+            addMessage('Processing error.', 'status');
+        }
+        micBtn.style.pointerEvents = ''; micBtn.style.opacity = '';
+    }
+
+    // ============================================================
+    // CHAT HISTORY SIDEBAR
+    // ============================================================
+    async function loadChatHistory() {
+        try {
+            var res = await fetch('/api/conversations');
+            var convs = await res.json();
+            var container = document.getElementById('chat-history-list');
+            if (!convs.length) { container.innerHTML = '<p class="text-[12px] text-text-tertiary text-center py-4">No conversations yet.</p>'; return; }
+            var html = '<div class="mb-4"><h3 class="text-[11px] font-bold text-text-tertiary tracking-wider mb-3 uppercase">Conversations</h3><ul class="flex flex-col gap-0.5 -mx-2">';
+            convs.forEach(function(c) {
+                var isActive = c.id === conversationId;
+                var cls = isActive ? 'bg-surface-hover text-text-primary font-semibold' : 'text-text-secondary font-medium';
+                html += '<li class="flex items-center group">';
+                html += '<a href="/chat/' + c.id + '" class="flex-1 block px-2 py-1.5 text-[13px] ' + cls + ' hover:text-text-primary hover:bg-surface-hover rounded-lg truncate transition-colors">' + escapeHtml(c.title) + '</a>';
+                html += '<button onclick="deleteConv(\'' + c.id + '\'); return false;" class="opacity-0 group-hover:opacity-100 p-1 text-text-tertiary hover:text-red-500 transition-all rounded" title="Delete">';
+                html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+                html += '</button></li>';
+            });
+            html += '</ul></div>';
+            container.innerHTML = html;
+        } catch(err) {}
+    }
+
+    async function deleteConv(id) {
+        await fetch('/api/conversations/' + id, { method: 'DELETE' });
+        if (id === conversationId) { window.location.href = '/'; return; }
+        loadChatHistory();
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        loadConversation();
+        loadChatHistory();
+
+        var textarea = document.getElementById('chat-input');
+        var sendBtn = document.getElementById('send-btn');
+        textarea.addEventListener('input', function() {
+            this.style.height = '44px';
+            this.style.height = Math.min(Math.max(this.scrollHeight, 44), 150) + 'px';
+            sendBtn.disabled = !this.value.trim();
+        });
+        textarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        });
+
+        textarea.focus();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,711 @@
+{% extends "base.html" %}
+{% block title %}{{ T.audio_chat }} – Kira{% endblock %}
+
+{% block content %}
+
+<!-- Messages area -->
+<div id="chat-messages" class="flex-1 overflow-y-auto px-4 md:px-8 py-6 flex flex-col">
+
+    <!-- Empty / Logo state (shown when no messages) -->
+    <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-center animate-slide-up">
+        <img src="/static/Kira.png" alt="Kira" width="90" height="90" class="mb-5 drop-shadow-sm">
+        <h1 class="text-[28px] font-bold text-text-primary tracking-tight mb-2">{{ T.audio_chat }}</h1>
+        <p class="text-text-tertiary text-sm font-medium mb-6">{{ T.audio_subtitle }}</p>
+
+        <!-- Recording indicator (shown when mic active) -->
+        <div id="recording-badge" class="hidden items-center gap-2.5 px-5 py-2.5 bg-red-50 border border-red-100 rounded-full">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span class="text-sm font-bold text-red-600">{{ T.listening }}</span>
+        </div>
+    </div>
+
+    <!-- Conversation bubbles -->
+    <div id="messages-container" class="flex flex-col gap-4 w-full max-w-[1100px] mx-auto"></div>
+
+</div>
+
+<!-- Now-speaking indicator -->
+<div id="speaking-bar" class="hidden px-4 md:px-8 pb-1 w-full flex-shrink-0">
+    <div class="w-full max-w-[1100px] mx-auto">
+        <div class="flex items-center gap-2 px-4 py-2 bg-violet-50 border border-violet-100 rounded-2xl">
+            <span class="w-2 h-2 rounded-full bg-violet-500 animate-pulse"></span>
+            <span class="text-[13px] font-bold text-violet-600">{{ T.kira_speaking }}</span>
+            <div class="flex items-end gap-0.5 ml-1">
+                <span class="w-1 h-3 bg-violet-400 rounded-full audio-bar" style="animation:audioBar 0.8s ease-in-out infinite;"></span>
+                <span class="w-1 h-5 bg-violet-500 rounded-full audio-bar" style="animation:audioBar 0.8s ease-in-out infinite 0.15s;"></span>
+                <span class="w-1 h-4 bg-violet-400 rounded-full audio-bar" style="animation:audioBar 0.8s ease-in-out infinite 0.3s;"></span>
+                <span class="w-1 h-6 bg-violet-500 rounded-full audio-bar" style="animation:audioBar 0.8s ease-in-out infinite 0.1s;"></span>
+                <span class="w-1 h-3 bg-violet-400 rounded-full audio-bar" style="animation:audioBar 0.8s ease-in-out infinite 0.25s;"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom action bar -->
+<div class="pb-8 pt-4 w-full flex-shrink-0 flex flex-col items-center gap-3">
+
+    <!-- Status label -->
+    <p id="status-label" class="text-[13px] font-semibold text-text-tertiary transition-all">{{ T.tap_to_speak }}</p>
+
+    <!-- Controls row -->
+    <div class="flex items-center gap-5">
+
+        <!-- New conversation -->
+        <button onclick="newConversation()" title="{{ T.new_chat }}"
+            class="w-11 h-11 rounded-2xl border border-border-default bg-white hover:bg-surface-hover text-text-tertiary hover:text-text-primary flex items-center justify-center transition-all shadow-sm hover:shadow-md">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+
+        <!-- TTS toggle -->
+        <button id="tts-btn" onclick="toggleTTS()" title="Voice Response"
+            class="w-11 h-11 rounded-2xl border border-border-default bg-white hover:bg-surface-hover text-text-tertiary hover:text-text-primary flex items-center justify-center transition-all shadow-sm hover:shadow-md">
+            <svg id="tts-icon-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            <svg id="tts-icon-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+
+        <!-- MIC — big center button -->
+        <button id="mic-btn" onclick="toggleRecording()" title="{{ T.tap_to_speak }} (Space)"
+            class="w-16 h-16 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white flex items-center justify-center shadow-btn hover:shadow-lg transition-all transform hover:scale-105 active:scale-95">
+            <!-- Mic icon (idle) -->
+            <svg id="mic-icon-idle" width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+            <!-- Stop icon (recording) -->
+            <svg id="mic-icon-stop" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="hidden">
+                <rect x="5" y="5" width="14" height="14" rx="2"/>
+            </svg>
+        </button>
+
+        <!-- Language / settings -->
+        <button title="Language"
+            class="w-11 h-11 rounded-2xl border border-border-default bg-white hover:bg-surface-hover text-text-tertiary hover:text-text-primary flex items-center justify-center transition-all shadow-sm hover:shadow-md">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </button>
+
+        <!-- Wake word mode toggle -->
+        <button id="wake-btn" onclick="toggleWakeMode()" title="Wake Word Mode"
+            class="w-11 h-11 rounded-2xl border border-border-default bg-white hover:bg-surface-hover text-text-tertiary hover:text-text-primary flex items-center justify-center transition-all shadow-sm hover:shadow-md">
+            <!-- Ear / wave icon (wake word off) -->
+            <svg id="wake-icon-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a9 9 0 0 1 9 9c0 4.56-2.59 8.22-6 9.5V21a1 1 0 0 1-2 0v-1.5C9.59 18.22 7 14.56 7 10A5 5 0 0 1 12 5"/>
+                <circle cx="12" cy="10" r="2"/>
+            </svg>
+            <!-- Ear / wave icon (wake word on — filled/colored) -->
+            <svg id="wake-icon-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden text-brand-500">
+                <path d="M12 1a9 9 0 0 1 9 9c0 4.56-2.59 8.22-6 9.5V21a1 1 0 0 1-2 0v-1.5C9.59 18.22 7 14.56 7 10A5 5 0 0 1 12 5"/>
+                <circle cx="12" cy="10" r="2" fill="currentColor"/>
+            </svg>
+        </button>
+
+    </div>
+
+    <p class="text-[11px] text-text-tertiary">Kira can make mistakes. Check important info.</p>
+</div>
+
+<style>
+    @keyframes audioBar {
+        0%, 100% { transform: scaleY(0.4); }
+        50%       { transform: scaleY(1); }
+    }
+    .audio-bar { transform-origin: bottom; display: inline-block; }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentConvId = null;
+    let isSending = false;
+
+    /* ── Model provider map (same as chat.html) ── */
+    const modelToProvider = {
+        'claude-sonnet': 'claude', 'claude-opus': 'claude',
+        'gemini-2.5-pro': 'gemini', 'gemini-2.5-flash': 'gemini',
+        'llama-4': 'meta',
+    };
+
+    /* ── Markdown renderer (same as chat.html) ── */
+    function renderMarkdown(text) {
+        var d = document.createElement('div'); d.textContent = text; var s = d.innerHTML;
+        s = s.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 rounded-xl p-3 my-2 overflow-x-auto text-xs"><code>$2</code></pre>');
+        s = s.replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-brand-700 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
+        s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        s = s.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+        s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-brand-600 underline hover:text-brand-700">$1</a>');
+        s = s.replace(/^### (.+)$/gm, '<h4 class="font-bold text-base mt-3 mb-1">$1</h4>');
+        s = s.replace(/^## (.+)$/gm,  '<h3 class="font-bold text-lg mt-3 mb-1">$1</h3>');
+        s = s.replace(/^# (.+)$/gm,   '<h2 class="font-bold text-xl mt-3 mb-1">$1</h2>');
+        s = s.replace(/^[*-] (.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
+        s = s.replace(/(<li.*<\/li>\n?)+/g, '<ul class="my-1">$&</ul>');
+        s = s.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>');
+        s = s.replace(/\n/g, '<br>');
+        s = s.replace(/(<\/pre>|<\/h[234]>|<\/ul>)<br>/g, '$1');
+        return s;
+    }
+
+    /* ── Messages (same structure as chat.html) ── */
+    function hideEmpty() {
+        var e = document.getElementById('empty-state');
+        if (e) e.style.display = 'none';
+    }
+
+    function addMessage(text, role) {
+        var container = document.getElementById('messages-container');
+        hideEmpty();
+
+        if (role === 'user') {
+            var msg = document.createElement('div');
+            msg.className = 'chat-msg max-w-[70%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap self-end bg-brand-500 text-white rounded-br-md';
+            msg.textContent = text;
+            container.appendChild(msg);
+        } else if (role === 'assistant') {
+            var wrapper = document.createElement('div');
+            wrapper.className = 'chat-msg flex items-start gap-3 self-start max-w-full';
+            var avatar = document.createElement('div');
+            avatar.className = 'w-8 h-8 rounded-full border border-border-default bg-white flex items-center justify-center flex-shrink-0 mt-0.5';
+            var provider = modelToProvider[currentModel] || 'claude';
+            avatar.innerHTML = modelLogos[provider] || modelLogos['claude'];
+            var svg = avatar.querySelector('svg');
+            if (svg) { svg.setAttribute('width','16'); svg.setAttribute('height','16'); }
+            var msg = document.createElement('div');
+            msg.className = 'px-4 py-3 rounded-2xl text-sm leading-relaxed bg-white border border-border-default text-text-primary rounded-bl-md';
+            msg.innerHTML = renderMarkdown(text);
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(msg);
+            container.appendChild(wrapper);
+        } else {
+            // status
+            var msg = document.createElement('div');
+            msg.className = 'chat-msg self-start flex items-center gap-2.5 text-text-tertiary text-xs py-2';
+            msg.innerHTML = '<div class="w-5 h-5 flex items-center justify-center"><svg class="animate-spin w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="50 20"/></svg></div><span class="status-text">' + escapeHtml(text) + '</span>';
+            container.appendChild(msg);
+        }
+
+        scrollToBottom();
+        return container.lastElementChild;
+    }
+
+    function createAssistantBubble() {
+        var container = document.getElementById('messages-container');
+        hideEmpty();
+        var wrapper = document.createElement('div');
+        wrapper.className = 'chat-msg flex items-start gap-3 self-start max-w-full';
+        var avatar = document.createElement('div');
+        avatar.className = 'w-8 h-8 rounded-full border border-border-default bg-white flex items-center justify-center flex-shrink-0 mt-0.5';
+        var provider = modelToProvider[currentModel] || 'claude';
+        avatar.innerHTML = modelLogos[provider] || modelLogos['claude'];
+        var svg = avatar.querySelector('svg');
+        if (svg) { svg.setAttribute('width','16'); svg.setAttribute('height','16'); }
+        var msg = document.createElement('div');
+        msg.className = 'px-4 py-3 rounded-2xl text-sm leading-relaxed bg-white border border-border-default text-text-primary rounded-bl-md';
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(msg);
+        container.appendChild(wrapper);
+        scrollToBottom();
+        return msg;
+    }
+
+    function scrollToBottom() {
+        var el = document.getElementById('chat-messages');
+        el.scrollTop = el.scrollHeight;
+    }
+
+    /* ── Status label helper ── */
+    function setStatus(text) {
+        var el = document.getElementById('status-label');
+        if (el) el.textContent = text;
+    }
+
+    /* ── Voice recording ── */
+    var isRecording = false, audioContext = null, scriptProcessor = null, audioStream = null, recordedSamples = [];
+
+    async function toggleRecording() {
+        if (isRecording) stopRecording();
+        else await startRecording();
+    }
+
+    var silenceAutoStopTimer = null;
+
+    async function startRecording() {
+        stopTTS();
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            audioContext = new AudioContext({ sampleRate: 16000 });
+            var source = audioContext.createMediaStreamSource(audioStream);
+            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+            recordedSamples = [];
+            var silenceFrames = 0;
+            var hasVoice = false;
+            var framesPerSec = 16000 / 4096; // ~3.9
+            var silenceThresholdFrames = Math.round(framesPerSec * 2.0); // 2s silence
+
+            scriptProcessor.onaudioprocess = function(e) {
+                var data = e.inputBuffer.getChannelData(0);
+                recordedSamples.push(new Float32Array(data));
+                var sum = 0;
+                for (var i = 0; i < data.length; i++) sum += data[i] * data[i];
+                var rms = Math.sqrt(sum / data.length);
+                if (rms > 0.01) { hasVoice = true; silenceFrames = 0; }
+                else if (hasVoice) {
+                    silenceFrames++;
+                    if (silenceFrames >= silenceThresholdFrames) stopRecording();
+                }
+            };
+
+            source.connect(scriptProcessor); scriptProcessor.connect(audioContext.destination);
+            isRecording = true;
+            micBtn_setRecording(true);
+            var badge = document.getElementById('recording-badge');
+            if (badge) badge.classList.remove('hidden'), badge.classList.add('flex');
+            setStatus('Listening...');
+        } catch(err) {
+            setStatus('Microphone access denied!');
+        }
+    }
+
+    function stopRecording() {
+        isRecording = false;
+        micBtn_setRecording(false);
+        var badge = document.getElementById('recording-badge');
+        if (badge) badge.classList.add('hidden'), badge.classList.remove('flex');
+        setStatus('Processing...');
+        if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
+        if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null; }
+        if (recordedSamples.length > 0) processAudio(samplesToWav(recordedSamples, 16000));
+        if (audioContext) { audioContext.close(); audioContext = null; }
+    }
+
+    function samplesToWav(samples, sr) {
+        var len = 0; for (var i = 0; i < samples.length; i++) len += samples[i].length;
+        var merged = new Float32Array(len), off = 0;
+        for (var i = 0; i < samples.length; i++) { merged.set(samples[i], off); off += samples[i].length; }
+        var pcm = new Int16Array(merged.length);
+        for (var i = 0; i < merged.length; i++) { var s = Math.max(-1, Math.min(1, merged[i])); pcm[i] = s < 0 ? s*0x8000 : s*0x7FFF; }
+        var buf = new ArrayBuffer(44 + pcm.length*2), v = new DataView(buf);
+        wStr(v,0,'RIFF'); v.setUint32(4,36+pcm.length*2,true); wStr(v,8,'WAVE');
+        wStr(v,12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+        v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+        wStr(v,36,'data'); v.setUint32(40,pcm.length*2,true);
+        new Int16Array(buf,44).set(pcm);
+        return new Blob([buf], {type:'audio/wav'});
+    }
+    function wStr(v,o,s){ for(var i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); }
+
+    /* ── Audio queue for sequential sentence playback ── */
+    var audioQueue = [];
+    var queuePlaying = false;
+
+    function enqueueAudio(b64, fallbackText) {
+        audioQueue.push({ b64: b64, text: fallbackText });
+        if (!queuePlaying) playQueue();
+    }
+
+    function playQueue() {
+        if (audioQueue.length === 0) {
+            queuePlaying = false;
+            hideSpeakBar();
+            return;
+        }
+        queuePlaying = true;
+        showSpeakBar();
+        var item = audioQueue.shift();
+        if (item.b64) {
+            var binary = atob(item.b64);
+            var bytes = new Uint8Array(binary.length);
+            for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            var url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
+            ttsAudio.onended = function() { URL.revokeObjectURL(url); playQueue(); };
+            ttsAudio.onerror = function() { URL.revokeObjectURL(url); playQueue(); };
+            ttsAudio.src = url;
+            ttsAudio.play().catch(function() { playQueue(); });
+        } else {
+            // No audio for this sentence, move on
+            playQueue();
+        }
+    }
+
+    async function processAudio(wavBlob) {
+        var micBtn = document.getElementById('mic-btn');
+        micBtn.style.pointerEvents = 'none'; micBtn.style.opacity = '0.5';
+        var thinkingEl = addMessage('Kira is thinking...', 'status');
+        audioQueue = []; queuePlaying = false;
+
+        try {
+            var fd = new FormData();
+            fd.append('audio', wavBlob, 'recording.wav');
+            fd.append('model', currentModel);
+            if (currentConvId) fd.append('conversation_id', currentConvId);
+
+            var res = await fetch('/api/chat', { method: 'POST', body: fd });
+            var reader = res.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            var assistantBubble = null;
+            var fullText = '';
+            var currentEvent = '';
+
+            while (true) {
+                var { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                var lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (var line of lines) {
+                    if (line.startsWith('event: ')) {
+                        currentEvent = line.slice(7).trim();
+                    } else if (line.startsWith('data: ')) {
+                        var payload;
+                        try { payload = JSON.parse(line.slice(6)); } catch(e) { continue; }
+
+                        if (currentEvent === 'transcript') {
+                            thinkingEl.remove();
+                            currentConvId = payload.conversation_id || currentConvId;
+                            addMessage(payload.text, 'user');
+                            assistantBubble = createAssistantBubble();
+                            setStatus('{{ T.kira_speaking }}');
+
+                        } else if (currentEvent === 'sentence') {
+                            // Append text to bubble
+                            fullText += (fullText ? ' ' : '') + payload.text;
+                            if (assistantBubble) assistantBubble.innerHTML = renderMarkdown(fullText);
+                            scrollToBottom();
+                            // Enqueue audio
+                            if (ttsEnabled) enqueueAudio(payload.audio || null, payload.text);
+
+                        } else if (currentEvent === 'done') {
+                            currentConvId = payload.conversation_id || currentConvId;
+                            loadChatHistory();
+                            setStatus('{{ T.tap_to_speak }}');
+                        }
+                    }
+                }
+            }
+        } catch(err) {
+            if (thinkingEl.parentNode) thinkingEl.remove();
+            addMessage('Processing error.', 'status');
+            setStatus('{{ T.tap_to_speak }}');
+        }
+        micBtn.style.pointerEvents = ''; micBtn.style.opacity = '';
+    }
+
+    /* ── Audio playback helpers ── */
+    function showSpeakBar() { document.getElementById('speaking-bar').classList.remove('hidden'); }
+    function hideSpeakBar()  { document.getElementById('speaking-bar').classList.add('hidden'); }
+
+    // Pre-created audio element
+    var ttsAudio = new Audio();
+
+    function stopTTS() {
+        // Stop audio element cleanly without triggering onerror
+        ttsAudio.onended = null;
+        ttsAudio.onerror = null;
+        ttsAudio.pause();
+        ttsAudio.src = '';
+        // Stop Web Speech API too
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        hideSpeakBar();
+    }
+
+    async function playAudioB64(b64, fallbackText) {
+        try {
+            var binary = atob(b64);
+            var bytes = new Uint8Array(binary.length);
+            for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            var blob = new Blob([bytes], { type: 'audio/mpeg' });
+            var url  = URL.createObjectURL(blob);
+
+            ttsAudio.src = url;
+            showSpeakBar();
+            ttsAudio.onended = function() { hideSpeakBar(); URL.revokeObjectURL(url); };
+            ttsAudio.onerror = function() {
+                hideSpeakBar(); URL.revokeObjectURL(url);
+                speakWebSpeech(fallbackText);
+            };
+            var p = ttsAudio.play();
+            if (p) p.catch(function(e) {
+                console.warn('Audio play failed:', e);
+                hideSpeakBar();
+                speakWebSpeech(fallbackText);
+            });
+        } catch(e) {
+            console.error('playAudioB64 error:', e);
+            speakWebSpeech(fallbackText);
+        }
+    }
+
+    function speakWebSpeech(text) {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        var utt = new SpeechSynthesisUtterance(text);
+        var voices = window.speechSynthesis.getVoices();
+        var preferred = voices.find(v => /Google|Microsoft/.test(v.name) && /en-|de-/.test(v.lang))
+                     || voices.find(v => /en-US|de-DE/.test(v.lang))
+                     || voices[0];
+        if (preferred) utt.voice = preferred;
+        utt.lang = preferred ? preferred.lang : 'en-US';
+        utt.rate = 1.0; utt.pitch = 1.05;
+        showSpeakBar();
+        utt.onend = hideSpeakBar; utt.onerror = hideSpeakBar;
+        window.speechSynthesis.speak(utt);
+    }
+
+    /* ── TTS toggle ── */
+    let ttsEnabled = true;
+    function toggleTTS() {
+        ttsEnabled = !ttsEnabled;
+        document.getElementById('tts-icon-on').classList.toggle('hidden', !ttsEnabled);
+        document.getElementById('tts-icon-off').classList.toggle('hidden', ttsEnabled);
+        var btn = document.getElementById('tts-btn');
+        btn.classList.toggle('text-text-tertiary', ttsEnabled);
+        btn.classList.toggle('text-red-400', !ttsEnabled);
+    }
+
+    /* ── New conversation ── */
+    function newConversation() {
+        currentConvId = null;
+        document.getElementById('messages-container').innerHTML = '';
+        var e = document.getElementById('empty-state');
+        if (e) e.style.display = '';
+        setStatus('{{ T.tap_to_speak }}');
+    }
+
+    /* ── Space bar shortcut (button mode only) ── */
+    document.addEventListener('keydown', function(e) {
+        if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            if (!wakeWordMode) toggleRecording();
+        }
+    });
+
+    /* ── Wake word mode ── */
+    var wakeWordMode = false;
+    var wakeRecognition = null;
+    var wakeAutoStopTimer = null;
+    var wakeSilenceTimer = null;
+    var wakeListening = false; // true while recording after wake word
+
+    function toggleWakeMode() {
+        wakeWordMode = !wakeWordMode;
+        var iconOff = document.getElementById('wake-icon-off');
+        var iconOn  = document.getElementById('wake-icon-on');
+        var btn     = document.getElementById('wake-btn');
+        var micBtn  = document.getElementById('mic-btn');
+        if (wakeWordMode) {
+            iconOff.classList.add('hidden');
+            iconOn.classList.remove('hidden');
+            btn.classList.add('border-brand-400', 'bg-brand-50', 'text-brand-500');
+            btn.classList.remove('border-border-default', 'bg-white', 'text-text-tertiary');
+            micBtn.style.opacity = '0.4';
+            micBtn.style.pointerEvents = 'none';
+            setStatus("Say 'Kira' to start...");
+            startWakeWordListening();
+        } else {
+            iconOff.classList.remove('hidden');
+            iconOn.classList.add('hidden');
+            btn.classList.remove('border-brand-400', 'bg-brand-50', 'text-brand-500');
+            btn.classList.add('border-border-default', 'bg-white', 'text-text-tertiary');
+            micBtn.style.opacity = '';
+            micBtn.style.pointerEvents = '';
+            setStatus('{{ T.tap_to_speak }}');
+            stopWakeWordListening();
+        }
+    }
+
+    function startWakeWordListening() {
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            alert('Wake word not supported in this browser. Use Chrome or Edge.');
+            wakeWordMode = false;
+            return;
+        }
+        wakeRecognition = new SR();
+        wakeRecognition.continuous = true;
+        wakeRecognition.interimResults = true;
+        wakeRecognition.lang = 'de-DE'; // Kira works in both languages
+        wakeRecognition.maxAlternatives = 3;
+
+        wakeRecognition.onresult = function(event) {
+            if (wakeListening || isRecording || isSending) return; // already triggered
+            for (var i = event.resultIndex; i < event.results.length; i++) {
+                for (var a = 0; a < event.results[i].length; a++) {
+                    var txt = event.results[i][a].transcript.toLowerCase().trim();
+                    if (/\bkira\b/.test(txt)) {
+                        wakeWordDetected();
+                        return;
+                    }
+                }
+            }
+        };
+
+        wakeRecognition.onend = function() {
+            // Restart if still in wake word mode and not currently processing
+            if (wakeWordMode && !isRecording && !isSending) {
+                setTimeout(function() {
+                    if (wakeWordMode && !isRecording && !isSending) {
+                        try { wakeRecognition.start(); } catch(e) {}
+                    }
+                }, 300);
+            }
+        };
+
+        wakeRecognition.onerror = function(e) {
+            if (e.error === 'not-allowed') {
+                setStatus('Microphone access denied!');
+                toggleWakeMode(); // revert
+            }
+        };
+
+        try { wakeRecognition.start(); } catch(e) {}
+    }
+
+    function stopWakeWordListening() {
+        if (wakeRecognition) {
+            try { wakeRecognition.abort(); } catch(e) {}
+            wakeRecognition = null;
+        }
+        clearTimeout(wakeAutoStopTimer);
+        clearTimeout(wakeSilenceTimer);
+        wakeListening = false;
+    }
+
+    function wakeWordDetected() {
+        wakeListening = true;
+        playBeep();
+        setStatus('Listening...');
+        // Show mic as active visually
+        var micBtn = document.getElementById('mic-btn');
+        micBtn.style.opacity = '';
+        micBtn.style.pointerEvents = '';
+
+        // Small delay after beep, then start recording
+        setTimeout(async function() {
+            if (!wakeWordMode) return;
+            await startRecordingWake();
+        }, 400);
+    }
+
+    async function startRecordingWake() {
+        stopTTS();
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            audioContext = new AudioContext({ sampleRate: 16000 });
+            var source = audioContext.createMediaStreamSource(audioStream);
+            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+            recordedSamples = [];
+            var silenceFrames = 0;
+            var maxSilenceFrames = Math.round(16000 / 4096 * 2.0); // 2s silence
+            var hasVoice = false;
+
+            scriptProcessor.onaudioprocess = function(e) {
+                var data = e.inputBuffer.getChannelData(0);
+                recordedSamples.push(new Float32Array(data));
+                // RMS silence detection
+                var sum = 0;
+                for (var i = 0; i < data.length; i++) sum += data[i] * data[i];
+                var rms = Math.sqrt(sum / data.length);
+                if (rms > 0.01) { hasVoice = true; silenceFrames = 0; }
+                else if (hasVoice) {
+                    silenceFrames++;
+                    if (silenceFrames >= maxSilenceFrames) stopRecordingWake();
+                }
+            };
+
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(audioContext.destination);
+            isRecording = true;
+
+            // Mic button red
+            micBtn_setRecording(true);
+
+            var badge = document.getElementById('recording-badge');
+            if (badge) badge.classList.remove('hidden'), badge.classList.add('flex');
+
+            // Hard max 10s
+            wakeAutoStopTimer = setTimeout(stopRecordingWake, 10000);
+
+        } catch(err) {
+            setStatus("Say 'Kira' to start...");
+            wakeListening = false;
+        }
+    }
+
+    function stopRecordingWake() {
+        if (!isRecording) return;
+        clearTimeout(wakeAutoStopTimer);
+        isRecording = false;
+        micBtn_setRecording(false);
+        var badge = document.getElementById('recording-badge');
+        if (badge) badge.classList.add('hidden'), badge.classList.remove('flex');
+        setStatus('Processing...');
+        if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
+        if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null; }
+        var wav = recordedSamples.length > 0 ? samplesToWav(recordedSamples, 16000) : null;
+        if (audioContext) { audioContext.close(); audioContext = null; }
+
+        // After processing, re-enable wake word listening
+        wakeListening = false;
+        var micBtn = document.getElementById('mic-btn');
+        micBtn.style.opacity = '0.4';
+        micBtn.style.pointerEvents = 'none';
+
+        if (wav) {
+            processAudio(wav).then(function() {
+                if (wakeWordMode) setStatus("Say 'Kira' to start...");
+            });
+        } else {
+            if (wakeWordMode) setStatus("Say 'Kira' to start...");
+        }
+    }
+
+    function micBtn_setRecording(on) {
+        var btn = document.getElementById('mic-btn');
+        if (on) {
+            btn.classList.remove('bg-brand-500','hover:bg-brand-600','active:bg-brand-700');
+            btn.classList.add('bg-red-500','hover:bg-red-600','active:bg-red-700');
+            document.getElementById('mic-icon-idle').classList.add('hidden');
+            document.getElementById('mic-icon-stop').classList.remove('hidden');
+        } else {
+            btn.classList.add('bg-brand-500','hover:bg-brand-600','active:bg-brand-700');
+            btn.classList.remove('bg-red-500','hover:bg-red-600','active:bg-red-700');
+            document.getElementById('mic-icon-idle').classList.remove('hidden');
+            document.getElementById('mic-icon-stop').classList.add('hidden');
+        }
+    }
+
+    function playBeep() {
+        try {
+            var ctx = new AudioContext();
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.25, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.25);
+            osc.onended = function() { ctx.close(); };
+        } catch(e) {}
+    }
+
+    /* ── Override processAudio to return a promise and handle wake mode status ── */
+    var _origProcessAudio = processAudio;
+    processAudio = async function(wavBlob) {
+        await _origProcessAudio(wavBlob);
+        if (wakeWordMode) {
+            setStatus("Say 'Kira' to start...");
+            var micBtn = document.getElementById('mic-btn');
+            micBtn.style.opacity = '0.4';
+            micBtn.style.pointerEvents = 'none';
+        }
+    };
+
+    /* ── Init ── */
+    document.addEventListener('DOMContentLoaded', function() {
+        setStatus('{{ T.tap_to_speak }}');
+    });
+</script>
+{% endblock %}
