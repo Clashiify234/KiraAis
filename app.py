@@ -272,9 +272,13 @@ except Exception as e:
     print(f"[STT] Groq unavailable: {e}")
 
 # Local Whisper fallback
-print("Loading local Whisper model (tiny)...")
-whisper_model = whisper.load_model("tiny")
-print("Whisper ready!")
+whisper_model = None
+if whisper is not None:
+    print("Loading local Whisper model (tiny)...")
+    whisper_model = whisper.load_model("tiny")
+    print("Whisper ready!")
+else:
+    print("[STT] Local Whisper not available, using Groq only")
 
 # ==========================================================================
 # AI CLIENTS
